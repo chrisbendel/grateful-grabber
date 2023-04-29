@@ -2,6 +2,9 @@ import React from "react";
 import logo from "@assets/img/logo.svg";
 import "@pages/popup/Popup.css";
 
+// TODO Simple button to download show here
+// TODO Link to github
+// TODO Message of thanks
 const Popup = () => {
   return (
     <div className="App">

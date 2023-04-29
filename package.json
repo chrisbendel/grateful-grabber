@@ -1,11 +1,11 @@
 {
-  "name": "chrome-extension-boilerplate-react-vite",
-  "version": "0.0.1",
-  "description": "chrome extension boilerplate",
+  "name": "grateful-grabber",
+  "version": "3.0.0",
+  "description": "Grateful Grabber",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite.git"
+    "url": "https://github.com/chrisbendel/grateful-grabber"
   },
   "scripts": {
     "build": "tsc --noEmit && vite build",
