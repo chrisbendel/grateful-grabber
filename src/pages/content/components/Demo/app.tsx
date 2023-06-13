@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 
 export default function App() {
-  const [showData, setShowData] = useState();
+  const [show, setShow] = useState();
 
   useEffect(() => {
     fetch(window.location.href + "&output=json")
       .then((res) => res.json())
       .then((data) => {
         console.log(data);
+        setShow(data);
       });
   }, []);
   return (
