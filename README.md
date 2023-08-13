@@ -7,6 +7,14 @@
 
 ## Intro <a name="intro"></a>
 
+## Future Plans <a name="plans"></a>
+1. Investigate how to open source the project
+2. Add a license
+3. Actually create the new version
+4. Donations go to nonprofit (Divided Sky Fund? Waterwheel foundation?)
+5. Post on reddit, invite new developers in
+6. Figure out long term next steps
+
 ## Features <a name="features"></a>
 - [React 18](https://reactjs.org/)
 - [TypeScript](https://www.typescriptlang.org/)
@@ -35,3 +43,5 @@
 - [ChromeExtension](https://developer.chrome.com/docs/extensions/mv3/)
 - [Rollup](https://rollupjs.org/guide/en/)
 - [Rollup-plugin-chrome-extension](https://www.extend-chrome.dev/rollup-plugin)
+- [Streamsaver](https://github.com/jimmywarting/StreamSaver.js)
+- 
