@@ -8,5 +8,4 @@ root.id = "grateful-grabber-root";
 const playerWrapper = document.getElementById("theatre-ia-wrap");
 playerWrapper.insertAdjacentElement("afterend", root);
 
-console.log("hello");
 createRoot(root).render(<App />);
