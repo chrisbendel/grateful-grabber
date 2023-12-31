@@ -15,10 +15,10 @@ const manifest: chrome.runtime.ManifestV3 = {
   action: {
     default_title: "Grateful Grabber",
     default_popup: "src/pages/popup/index.html",
-    default_icon: "icon-34.png",
+    default_icon: "stealie-128.png",
   },
   icons: {
-    "128": "icon-128.png",
+    "128": "stealie-128.png",
   },
   content_scripts: [
     {
@@ -34,8 +34,10 @@ const manifest: chrome.runtime.ManifestV3 = {
       resources: [
         "assets/js/*.js",
         "assets/css/*.css",
-        "icon-128.png",
-        "icon-34.png",
+        // TODO Needed?
+        // "stealie-16.png",
+        // "stealie-48.png",
+        "stealie-128.png",
       ],
       matches: ["*://*/*"],
     },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import {
   ArchiveFile,
   MP3Url,
@@ -38,22 +38,11 @@ const getShowTitle = (show: ArchiveShow) => {
   return show.metadata.date[0];
 };
 
-const createZip = (show: ArchiveShow) => {
+const createZip = async (show: ArchiveShow) => {
   const fileStream = streamSaver.createWriteStream(`${getShowTitle(show)}.zip`);
   const mp3s = getMP3Urls(show);
 
   const readableZipStream = new ZIP({
-    // start(ctrl) {
-    //   // console.log(ctrl);
-    //   // ctrl.enqueue(file1);
-    //   // ctrl.enqueue(file2);
-    //   // ctrl.enqueue(file3);
-    //   // ctrl.enqueue({
-    //   //   name: "streamsaver-zip-example/empty folder",
-    //   //   directory: true,
-    //   // });
-    //   // ctrl.close()
-    // },
     async pull(ctrl) {
       // Gets executed everytime zip.js asks for more data
       const infoFile = await fetch(getInfoFileUrl(show));
@@ -80,11 +69,6 @@ const createZip = (show: ArchiveShow) => {
 
 export default function App() {
   const [archiveShow, setArchiveShow] = useState<ArchiveShow>();
-  const [loading, setLoading] = useState(false);
-
-  const downloadShow = (show: ArchiveShow) => {
-    createZip(show);
-  };
 
   useEffect(() => {
     fetch(window.location.href + "&output=json")
@@ -102,15 +86,45 @@ export default function App() {
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent: "space-around",
           }}
         >
-          <h3>Grateful Grabber</h3>
-          <button className="button" onClick={() => downloadShow(archiveShow)}>
-            Download Show
-          </button>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              alignItems: "center",
+            }}
+          >
+            <h3>Grateful Grabber</h3>
+            <DownloadButton show={archiveShow} />
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
+  const [loading, setLoading] = useState(false);
+
+  const downloadShow = async (archiveShow: ArchiveShow) => {
+    setLoading(true);
+    await createZip(archiveShow);
+    setLoading(false);
+  };
+
+  return (
+    <button
+      onClick={() => downloadShow(show)}
+      style={{
+        borderRadius: "1rem",
+        fontSize: "2rem",
+      }}
+      disabled={loading}
+    >
+      Download Show
+    </button>
+  );
+};
