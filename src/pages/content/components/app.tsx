@@ -124,7 +124,7 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
       }}
       disabled={loading}
     >
-      Download Show
+      {loading ? "Downloading... Please be patient :)" : "Download Show"}
     </button>
   );
 };
