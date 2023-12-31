@@ -1,19 +1,24 @@
 ## Table of Contents
 
 - [Intro](#intro)
+- [Roadmap](#roadmap)
 - [Features](#features)
 - [Installation](#installation)
 - [Documents](#documents)
 
 ## Intro <a name="intro"></a>
 
-## Future Plans <a name="plans"></a>
+## Future Plans <a name="roadmap"></a>
 1. Investigate how to open source the project
 2. Add a license
 3. Actually create the new version
-4. Donations go to nonprofit (Divided Sky Fund? Waterwheel foundation?)
-5. Post on reddit, invite new developers in
+4. Donations points to nonprofits
+5. Invite new developers
 6. Figure out long term next steps
+
+## Future Features <a name="features"></a>
+1. Range request for retries/continuing where you left off
+2. Playwright tests against real archive page?
 
 ## Installation & Running <a name="installation"></a>
 1. Run `yarn install` (check your node version >= 16.6, recommended >= 18)
