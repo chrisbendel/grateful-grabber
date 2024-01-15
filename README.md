@@ -1,39 +1,24 @@
 ## Table of Contents
 
-- [Intro](#intro)
-- [Roadmap](#roadmap)
-- [Features](#features)
+- [Future Features & Improvements](#features)
 - [Installation](#installation)
-- [Documents](#documents)
-
-## Intro <a name="intro"></a>
-
-## Future Plans <a name="roadmap"></a>
-1. Investigate how to open source the project
-2. Add a license
-3. Actually create the new version
-4. Donations points to nonprofits
-5. Invite new developers
-6. Figure out long term next steps
+- [Map](#map)
 
 ## Future Features <a name="features"></a>
-1. Range request for retries/continuing where you left off
-2. Playwright tests against real archive page?
+1. [Range request for retries/continuing](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests)
+2. Playwright tests
 
 ## Installation & Running <a name="installation"></a>
 1. Run `yarn install` (check your node version >= 16.6, recommended >= 18)
 2. Run `yarn build && yarn dev`
 3. Load Extension on Chrome
-   1. Open - Chrome browser
-   2. Access - chrome://extensions
-   3. Check - Developer mode
-   4. Find - Load unpacked extension
-   5. Select - `dist` folder in this project (after dev or build)
+   1. Open your [chrome extensions](chrome://extensions)
+   2. Turn on developer mode
+   3. Load unpacked extension
+   4. Select the `dist` folder in this project (after dev or build)
 4. If you want to build for production, run `yarn build` before deploying.
 
-## Documents <a name="documents"></a>
-- [Vite Plugin](https://vitejs.dev/guide/api-plugin.html)
-- [ChromeExtension](https://developer.chrome.com/docs/extensions/mv3/)
-- [Rollup](https://rollupjs.org/guide/en/)
-- [Rollup-plugin-chrome-extension](https://www.extend-chrome.dev/rollup-plugin)
-- [Streamsaver](https://github.com/jimmywarting/StreamSaver.js)
+## Map <a name="Map"></a>
+- [Main page content](/src/pages/content)
+- [Extension icon content](/src/pages/popup)
+- [Background](/src/pages/background)
