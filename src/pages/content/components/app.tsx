@@ -8,6 +8,20 @@ import streamSaver from "streamsaver";
 import pickBy from "lodash-es/pickBy";
 import findKey from "lodash-es/findKey";
 import ZIP from "@pages/content/utils/zip-stream.js";
+import JSZip from "jszip";
+import JSZipUtils from "jszip-utils";
+
+const urlToPromise = (url: string) => {
+  return new Promise(function (resolve, reject) {
+    JSZipUtils.getBinaryContent(url, function (err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+};
 
 const getMP3Urls = (show: ArchiveShow) => {
   const mp3Files = pickBy(show.files, function (file: ArchiveFile) {
@@ -111,7 +125,8 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
 
   const downloadShow = async (archiveShow: ArchiveShow) => {
     setLoading(true);
-    await createZip(archiveShow);
+    await doTheThing(archiveShow);
+    // await createZip(archiveShow);
     setLoading(false);
   };
 
@@ -128,3 +143,84 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
     </button>
   );
 };
+
+// https://codesandbox.io/p/sandbox/jszip-with-streamsaver-4t056i?file=%2Fsrc%2Findex.js%3A105%2C8
+const doTheThing = async (show: ArchiveShow) => {
+  const zip = new JSZip();
+
+  const mp3s = getMP3Urls(show);
+
+  await Promise.all(
+    mp3s.map(async (mp3) => {
+      const res = await fetch(mp3.url);
+      const z = await JSZip.loadAsync(res.json());
+      const stream = () => res.body;
+
+      ctrl.enqueue({ name: `${mp3.title}.mp3`, stream });
+    })
+  );
+
+  const writeStream = streamSaver
+    .createWriteStream(`${getShowTitle(show)}.zip`)
+    .getWriter();
+  zip
+    .generateInternalStream({
+      type: "uint8array",
+      streamFiles: true,
+      compression: "DEFLATE",
+    })
+    .on("data", (data) => writeStream.write(data))
+    .on("error", (err) => console.error(err))
+    .on("end", () => writeStream.close())
+    .resume();
+
+  const infoUrl = getInfoFileUrl(show);
+  // zip.file("info.txt", urlToPromise(infoUrl), { binary: true });
+  fetch(infoUrl).then(async (res) => {
+    const fileStream = streamSaver.createWriteStream(
+      `${getShowTitle(show)}/info.txt`
+    );
+
+    const readableStream = res.body;
+
+    // more optimized
+    if (window.WritableStream && readableStream.pipeTo) {
+      await readableStream.pipeTo(fileStream);
+      return console.log("done writing");
+    }
+  });
+};
+
+// function getRemoteFile(file: string, url: string) {
+//   const localFile = fs.createWriteStream(file);
+//   const request = http.get(url, function (response) {
+//     const len = parseInt(response.headers["content-length"], 10);
+//     let cur = 0;
+//     const total = len / 1048576; //1048576 - bytes in 1 Megabyte
+//
+//     response.on("data", function (chunk) {
+//       cur += chunk.length;
+//       showProgress(file, cur, len, total);
+//     });
+//
+//     response.on("end", function () {
+//       console.log("Download complete");
+//     });
+//
+//     response.pipe(localFile);
+//   });
+// }
+//
+// function showProgress(file, cur, len, total) {
+//   console.log(
+//     "Downloading " +
+//       file +
+//       " - " +
+//       ((100.0 * cur) / len).toFixed(2) +
+//       "% (" +
+//       (cur / 1048576).toFixed(2) +
+//       " MB) of total size: " +
+//       total.toFixed(2) +
+//       " MB"
+//   );
+// }
