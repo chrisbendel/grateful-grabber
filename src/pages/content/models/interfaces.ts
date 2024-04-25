@@ -21,8 +21,7 @@ export interface Metadata {
   date: string[];
 }
 
-export interface MP3Url {
+export interface Track {
   title: string;
-  track: string;
   url: string;
 }

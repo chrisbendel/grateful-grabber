@@ -1,29 +1,21 @@
-import { FC, useEffect, useState } from "react";
+import {
+  ChangeEvent,
+  ChangeEventHandler,
+  FC,
+  useEffect,
+  useState,
+} from "react";
 import {
   ArchiveFile,
-  MP3Url,
   ArchiveShow,
+  Track,
 } from "@pages/content/models/interfaces";
-import streamSaver from "streamsaver";
 import pickBy from "lodash-es/pickBy";
 import findKey from "lodash-es/findKey";
-import ZIP from "@pages/content/utils/zip-stream.js";
-import JSZip from "jszip";
-import JSZipUtils from "jszip-utils";
+import JSZip, { file } from "jszip";
+import SelectionChangedEvent = chrome.devtools.panels.SelectionChangedEvent;
 
-const urlToPromise = (url: string) => {
-  return new Promise(function (resolve, reject) {
-    JSZipUtils.getBinaryContent(url, function (err, data) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
-};
-
-const getMP3Urls = (show: ArchiveShow) => {
+const getTracks = (show: ArchiveShow): Track[] => {
   const mp3Files = pickBy(show.files, function (file: ArchiveFile) {
     return file.format === "VBR MP3";
   });
@@ -33,7 +25,7 @@ const getMP3Urls = (show: ArchiveShow) => {
     const url = baseURL + key;
     let title = data.title || data.original;
     title = title.replace(/-|[^-_,A-Za-z0-9 ]+/g, "").trim();
-    return { title: index + 1 + ". " + title, track: title, url: url };
+    return { title: index + 1 + ". " + title, url: url } as Track;
   });
 };
 
@@ -49,37 +41,52 @@ const getInfoFileUrl = (show: ArchiveShow) => {
 // TODO Allow option for selecting show format OR
 //  Prompt user for download title? window.prompt?
 const getShowTitle = (show: ArchiveShow) => {
-  return show.metadata.date[0];
+  return (
+    prompt(`Custom folder title? Default ${show.metadata.date[0]}`) ||
+    show.metadata.date[0]
+  );
 };
 
-const createZip = async (show: ArchiveShow) => {
-  const fileStream = streamSaver.createWriteStream(`${getShowTitle(show)}.zip`);
-  const mp3s = getMP3Urls(show);
+async function fetchWithRedirect(url: string) {
+  const response = await fetch(url, { redirect: "follow" });
+  if (response.status === 302) {
+    const redirectUrl = response.headers.get("Location");
+    console.log(redirectUrl);
+    if (!redirectUrl) {
+      throw new Error("Redirect URL not found");
+    }
+    return fetch(redirectUrl); // Fetch the redirect URL
+  } else if (response.ok) {
+    return response;
+  } else {
+    throw new Error("Network response was not ok");
+  }
+}
 
-  const readableZipStream = new ZIP({
-    async pull(ctrl) {
-      // Gets executed everytime zip.js asks for more data
-      const infoFile = await fetch(getInfoFileUrl(show));
-      ctrl.enqueue({
-        name: "info.txt",
-        stream: () => infoFile.body,
-      });
-
-      // TODO Implement range fetching: https://www.zeng.dev/post/2023-http-range-and-play-mp4-in-browser/
-      await Promise.all(
-        mp3s.map(async (mp3) => {
-          const res = await fetch(mp3.url);
-          const stream = () => res.body;
-          ctrl.enqueue({ name: `${mp3.title}.mp3`, stream });
-        })
+async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
+  let retries = 0;
+  while (true) {
+    try {
+      const response = await fetchWithRedirect(url);
+      if (response.ok) {
+        return response;
+      } else {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+    } catch (error) {
+      retries++;
+      if (retries >= maxRetries) {
+        throw error; // If max retries exceeded, propagate the error
+      }
+      console.log(
+        `Error occurred, retrying (${retries}/${maxRetries}):`,
+        error
       );
-
-      ctrl.close();
-    },
-  });
-
-  return readableZipStream.pipeTo(fileStream);
-};
+      // Wait for a short duration before retrying (you can adjust the duration as needed)
+      await new Promise((resolve) => setTimeout(resolve, 1000 * retries));
+    }
+  }
+}
 
 export default function App() {
   const [archiveShow, setArchiveShow] = useState<ArchiveShow>();
@@ -112,7 +119,16 @@ export default function App() {
             }}
           >
             <h3>Grateful Grabber</h3>
-            <DownloadButton show={archiveShow} />
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                alignItems: "center",
+              }}
+            >
+              <DownloadIndividualSong show={archiveShow} />
+              <DownloadButton show={archiveShow} />
+            </div>
           </div>
         </div>
       </div>
@@ -120,107 +136,183 @@ export default function App() {
   );
 }
 
+const DownloadIndividualSong: FC<{ show: ArchiveShow }> = ({ show }) => {
+  const [loadingTracks, setLoadingTracks] = useState<string[]>([]);
+  const tracks = getTracks(show);
+
+  console.log(loadingTracks);
+
+  const onDownload = async (track: Track) => {
+    setLoadingTracks((prevState) => [...prevState, track.title]);
+    await downloadFile(track.url, track.title, ".mp3");
+    setLoadingTracks(loadingTracks.filter((t) => t == track.title));
+  };
+
+  return (
+    <>
+      <select style={{ fontSize: ".75em" }}>
+        <option>Download Individually</option>
+        {tracks.map((track) => {
+          return (
+            <option
+              key={track.title}
+              onSelect={() => onDownload(track)}
+              value={track.url}
+              // disabled={loadingTracks.includes(track.title)}
+            >
+              {track.title}
+              {loadingTracks.includes(track.title) ? (
+                <div className="loader"></div>
+              ) : null}
+            </option>
+          );
+        })}
+      </select>
+      {loadingTracks.length > 0 ? (
+        <span style={{ fontSize: ".75em" }}>Downloading {loadingTracks}</span>
+      ) : null}
+    </>
+  );
+};
+
 const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
 
   const downloadShow = async (archiveShow: ArchiveShow) => {
+    setError(null);
     setLoading(true);
-    await doTheThing(archiveShow);
-    // await createZip(archiveShow);
+
+    await createZip(archiveShow, setProgress)
+      .then((blob) => downloadZip(archiveShow, blob, setProgress))
+      .catch((error) => {
+        setError(error.toString());
+        setLoading(false);
+        console.error("Error:", error);
+      });
+
     setLoading(false);
   };
 
   return (
-    <button
-      onClick={() => downloadShow(show)}
-      style={{
-        borderRadius: "1rem",
-        fontSize: "2rem",
-      }}
-      disabled={loading}
-    >
-      {loading ? "Downloading... Please be patient :)" : "Download Show"}
-    </button>
+    <>
+      <button
+        onClick={() => downloadShow(show)}
+        style={{
+          borderRadius: "1rem",
+          fontSize: "2rem",
+        }}
+        disabled={loading}
+      >
+        {loading ? "Downloading... Please be patient :)" : "Download Show"}
+      </button>
+      {progress ? <progress value={progress}> </progress> : null}
+      {error && (
+        <span
+          style={{
+            fontSize: ".75em",
+          }}
+        >
+          Something went wrong, restart the download, it should pick up where
+          you left off :)
+        </span>
+      )}
+    </>
   );
 };
 
-// https://codesandbox.io/p/sandbox/jszip-with-streamsaver-4t056i?file=%2Fsrc%2Findex.js%3A105%2C8
-const doTheThing = async (show: ArchiveShow) => {
-  const zip = new JSZip();
+async function downloadFile(url: string, fileName: string, extension = ".mp3") {
+  const response = await fetchWithRetry(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url}`);
+  }
 
-  const mp3s = getMP3Urls(show);
+  const blob = await response.blob();
 
-  await Promise.all(
-    mp3s.map(async (mp3) => {
-      const res = await fetch(mp3.url);
-      const z = await JSZip.loadAsync(res.json());
-      const stream = () => res.body;
+  // Create a temporary anchor element
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${fileName}${extension}`;
 
-      ctrl.enqueue({ name: `${mp3.title}.mp3`, stream });
-    })
+  // Programmatically trigger the download
+  a.click();
+
+  // Clean up the URL.createObjectURL() resource
+  URL.revokeObjectURL(a.href);
+}
+
+async function getFileBlob(
+  url: string,
+  onProgress?: (progress: number) => void
+): Promise<Blob> {
+  const response = await fetchWithRetry(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url}`);
+  }
+
+  const contentLength = parseInt(
+    response.headers.get("Content-Length") || "0",
+    10
   );
+  let receivedLength = 0;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
 
-  const writeStream = streamSaver
-    .createWriteStream(`${getShowTitle(show)}.zip`)
-    .getWriter();
-  zip
-    .generateInternalStream({
-      type: "uint8array",
-      streamFiles: true,
-      compression: "DEFLATE",
-    })
-    .on("data", (data) => writeStream.write(data))
-    .on("error", (err) => console.error(err))
-    .on("end", () => writeStream.close())
-    .resume();
+  while (true) {
+    const { done, value } = await reader.read();
 
-  const infoUrl = getInfoFileUrl(show);
-  // zip.file("info.txt", urlToPromise(infoUrl), { binary: true });
-  fetch(infoUrl).then(async (res) => {
-    const fileStream = streamSaver.createWriteStream(
-      `${getShowTitle(show)}/info.txt`
-    );
-
-    const readableStream = res.body;
-
-    // more optimized
-    if (window.WritableStream && readableStream.pipeTo) {
-      await readableStream.pipeTo(fileStream);
-      return console.log("done writing");
+    if (done) {
+      break;
     }
-  });
-};
 
-// function getRemoteFile(file: string, url: string) {
-//   const localFile = fs.createWriteStream(file);
-//   const request = http.get(url, function (response) {
-//     const len = parseInt(response.headers["content-length"], 10);
-//     let cur = 0;
-//     const total = len / 1048576; //1048576 - bytes in 1 Megabyte
-//
-//     response.on("data", function (chunk) {
-//       cur += chunk.length;
-//       showProgress(file, cur, len, total);
-//     });
-//
-//     response.on("end", function () {
-//       console.log("Download complete");
-//     });
-//
-//     response.pipe(localFile);
-//   });
-// }
-//
-// function showProgress(file, cur, len, total) {
-//   console.log(
-//     "Downloading " +
-//       file +
-//       " - " +
-//       ((100.0 * cur) / len).toFixed(2) +
-//       "% (" +
-//       (cur / 1048576).toFixed(2) +
-//       " MB) of total size: " +
-//       total.toFixed(2) +
-//       " MB"
-//   );
-// }
+    chunks.push(value);
+    receivedLength += value.length;
+    const progress = receivedLength / contentLength;
+    onProgress?.(progress);
+  }
+
+  return new Blob(chunks);
+}
+
+// Define function to create a zip file from mp3 blobs with progress ingtrack
+async function createZip(
+  show: ArchiveShow,
+  onProgress: (progress: number) => void
+): Promise<Blob> {
+  const zip = new JSZip();
+  let completedCount = 0;
+  const mp3Urls = getTracks(show);
+  console.log(mp3Urls);
+  const infoFile = getInfoFileUrl(show);
+
+  const infoBlob = await getFileBlob(infoFile);
+  zip.file("info.txt", infoBlob);
+
+  for (const url of mp3Urls) {
+    const mp3Blob = await getFileBlob(url.url, (progress) => {
+      const overallProgress = (completedCount + progress) / mp3Urls.length;
+      onProgress(overallProgress);
+    });
+
+    zip.file(`${url.title}.mp3`, mp3Blob);
+    completedCount++;
+    onProgress(completedCount / mp3Urls.length);
+  }
+
+  return await zip.generateAsync({ type: "blob" });
+}
+
+// Define function to download the zip file with progress tracking
+function downloadZip(
+  archiveShow: ArchiveShow,
+  blob: Blob,
+  onProgress: (progress: number) => void
+) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${getShowTitle(archiveShow)}.zip`;
+  a.click();
+  onProgress(1); // Mark progress as completed
+}
