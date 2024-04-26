@@ -31,14 +31,7 @@ const manifest: chrome.runtime.ManifestV3 = {
   ],
   web_accessible_resources: [
     {
-      resources: [
-        "assets/js/*.js",
-        "assets/css/*.css",
-        // TODO Needed?
-        // "stealie-16.png",
-        // "stealie-48.png",
-        "stealie-128.png",
-      ],
+      resources: ["assets/js/*.js", "assets/css/*.css", "stealie-128.png"],
       matches: ["*://*/*"],
     },
   ],
