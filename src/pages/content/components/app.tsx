@@ -1,10 +1,4 @@
-import {
-  ChangeEvent,
-  ChangeEventHandler,
-  FC,
-  useEffect,
-  useState,
-} from "react";
+import { FC, useEffect, useState } from "react";
 import {
   ArchiveFile,
   ArchiveShow,
@@ -12,8 +6,7 @@ import {
 } from "@pages/content/models/interfaces";
 import pickBy from "lodash-es/pickBy";
 import findKey from "lodash-es/findKey";
-import JSZip, { file } from "jszip";
-import SelectionChangedEvent = chrome.devtools.panels.SelectionChangedEvent;
+import JSZip from "jszip";
 
 const getTracks = (show: ArchiveShow): Track[] => {
   const mp3Files = pickBy(show.files, function (file: ArchiveFile) {
@@ -38,11 +31,9 @@ const getInfoFileUrl = (show: ArchiveShow) => {
   return `${baseURL}/${infoFile}`;
 };
 
-// TODO Allow option for selecting show format OR
-//  Prompt user for download title? window.prompt?
 const getShowTitle = (show: ArchiveShow) => {
-  return (
-    prompt(`Custom folder title? Default ${show.metadata.date[0]}`) ||
+  return prompt(
+    `Custom folder title? Default ${show.metadata.date[0]}`,
     show.metadata.date[0]
   );
 };
@@ -51,7 +42,6 @@ async function fetchWithRedirect(url: string) {
   const response = await fetch(url, { redirect: "follow" });
   if (response.status === 302) {
     const redirectUrl = response.headers.get("Location");
-    console.log(redirectUrl);
     if (!redirectUrl) {
       throw new Error("Redirect URL not found");
     }
@@ -119,16 +109,8 @@ export default function App() {
             }}
           >
             <h3>Grateful Grabber</h3>
-            <div
-              style={{
-                display: "flex",
-                gap: "1rem",
-                alignItems: "center",
-              }}
-            >
-              <DownloadIndividualSong show={archiveShow} />
-              <DownloadButton show={archiveShow} />
-            </div>
+            <DownloadButton show={archiveShow} />
+            <DownloadIndividualSong show={archiveShow} />
           </div>
         </div>
       </div>
@@ -140,17 +122,25 @@ const DownloadIndividualSong: FC<{ show: ArchiveShow }> = ({ show }) => {
   const [loadingTracks, setLoadingTracks] = useState<string[]>([]);
   const tracks = getTracks(show);
 
-  console.log(loadingTracks);
-
-  const onDownload = async (track: Track) => {
-    setLoadingTracks((prevState) => [...prevState, track.title]);
-    await downloadFile(track.url, track.title, ".mp3");
-    setLoadingTracks(loadingTracks.filter((t) => t == track.title));
+  const onDownload = async (event) => {
+    const selectedOption = event.target.selectedOptions[0];
+    const title = selectedOption.text;
+    const url = selectedOption.value;
+    setLoadingTracks((prevState) => [...prevState, title]);
+    await downloadFile(url, title, ".mp3");
+    setLoadingTracks(loadingTracks.filter((t) => t == title));
   };
 
   return (
-    <>
-      <select style={{ fontSize: ".75em" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "1rem",
+        alignItems: "center",
+      }}
+    >
+      <select style={{ fontSize: ".75em" }} onChange={onDownload}>
         <option>Download Individually</option>
         {tracks.map((track) => {
           return (
@@ -158,20 +148,29 @@ const DownloadIndividualSong: FC<{ show: ArchiveShow }> = ({ show }) => {
               key={track.title}
               onSelect={() => onDownload(track)}
               value={track.url}
-              // disabled={loadingTracks.includes(track.title)}
             >
               {track.title}
-              {loadingTracks.includes(track.title) ? (
-                <div className="loader"></div>
-              ) : null}
             </option>
           );
         })}
       </select>
+
       {loadingTracks.length > 0 ? (
-        <span style={{ fontSize: ".75em" }}>Downloading {loadingTracks}</span>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            fontSize: ".75em",
+          }}
+        >
+          <p>Download queue</p>
+          {loadingTracks.map((title) => (
+            <span key={title}>{title}</span>
+          ))}
+        </div>
       ) : null}
-    </>
+    </div>
   );
 };
 
@@ -182,10 +181,14 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
 
   const downloadShow = async (archiveShow: ArchiveShow) => {
     setError(null);
+
+    const showTitle = getShowTitle(archiveShow);
+    if (!showTitle) return;
+
     setLoading(true);
 
     await createZip(archiveShow, setProgress)
-      .then((blob) => downloadZip(archiveShow, blob, setProgress))
+      .then((blob) => downloadZip(showTitle, blob, setProgress))
       .catch((error) => {
         setError(error.toString());
         setLoading(false);
@@ -193,6 +196,7 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
       });
 
     setLoading(false);
+    setProgress(0);
   };
 
   return (
@@ -230,15 +234,12 @@ async function downloadFile(url: string, fileName: string, extension = ".mp3") {
 
   const blob = await response.blob();
 
-  // Create a temporary anchor element
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `${fileName}${extension}`;
 
-  // Programmatically trigger the download
   a.click();
 
-  // Clean up the URL.createObjectURL() resource
   URL.revokeObjectURL(a.href);
 }
 
@@ -275,7 +276,6 @@ async function getFileBlob(
   return new Blob(chunks);
 }
 
-// Define function to create a zip file from mp3 blobs with progress ingtrack
 async function createZip(
   show: ArchiveShow,
   onProgress: (progress: number) => void
@@ -283,7 +283,6 @@ async function createZip(
   const zip = new JSZip();
   let completedCount = 0;
   const mp3Urls = getTracks(show);
-  console.log(mp3Urls);
   const infoFile = getInfoFileUrl(show);
 
   const infoBlob = await getFileBlob(infoFile);
@@ -303,16 +302,15 @@ async function createZip(
   return await zip.generateAsync({ type: "blob" });
 }
 
-// Define function to download the zip file with progress tracking
 function downloadZip(
-  archiveShow: ArchiveShow,
+  folderName: string,
   blob: Blob,
   onProgress: (progress: number) => void
 ) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${getShowTitle(archiveShow)}.zip`;
+  a.download = `${folderName}.zip`;
   a.click();
   onProgress(1); // Mark progress as completed
 }
