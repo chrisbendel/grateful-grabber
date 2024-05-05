@@ -92,7 +92,7 @@ export default function App() {
   }
 
   return (
-    <div className="content-view container container-ia width-max relative-row-wrap info-top">
+    <div className="container container-ia width-max relative-row-wrap info-top">
       <div className="container container-ia">
         <div
           style={{
@@ -140,7 +140,7 @@ const DownloadIndividualSong: FC<{ show: ArchiveShow }> = ({ show }) => {
         alignItems: "center",
       }}
     >
-      <select style={{ fontSize: ".75em" }} onChange={onDownload}>
+      <select onChange={onDownload} className="minimalist-select">
         <option>Download Individually</option>
         {tracks.map((track) => {
           return (
@@ -161,12 +161,10 @@ const DownloadIndividualSong: FC<{ show: ArchiveShow }> = ({ show }) => {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            fontSize: ".75em",
           }}
         >
-          <p>Download queue</p>
           {loadingTracks.map((title) => (
-            <span key={title}>{title}</span>
+            <span key={title}>Downloading {title}</span>
           ))}
         </div>
       ) : null}
@@ -203,13 +201,10 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
     <>
       <button
         onClick={() => downloadShow(show)}
-        style={{
-          borderRadius: "1rem",
-          fontSize: "2rem",
-        }}
+        className="minimalist-button"
         disabled={loading}
       >
-        {loading ? "Downloading... Please be patient :)" : "Download Show"}
+        {loading ? "Downloading... Please be patient" : "Download Show"}
       </button>
       {progress ? <progress value={progress}> </progress> : null}
       {error && (
