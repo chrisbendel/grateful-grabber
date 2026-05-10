@@ -19,6 +19,12 @@ export interface ArchiveShow {
 
 export interface Metadata {
   date: string[];
+  identifier?: string[];
+  venue?: string[];
+  source?: string[];
+  coverage?: string[];
+  subject?: string[];
+  transferer?: string[];
 }
 
 export interface Track {

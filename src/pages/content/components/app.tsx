@@ -25,11 +25,25 @@ const getInfoFileUrl = (show: ArchiveShow) => {
   return `${baseURL}/${infoFile}`;
 };
 
-const getShowTitle = (show: ArchiveShow) => {
-  return prompt(
-    `Custom folder title? Default ${show.metadata.date[0]}`,
-    show.metadata.date[0]
-  );
+const getFolderName = (show: ArchiveShow) => {
+  const date = show.metadata.date?.[0] ?? "";
+  const venue = show.metadata.venue?.[0] ?? "";
+  const source = show.metadata.source?.[0] ?? "";
+  const sourceType = source.split(" ")?.[0] ?? "";
+  const identifier = show.metadata.identifier?.[0] ?? "";
+
+  // Prefer full identifier, fall back to descriptive string
+  let folderName = identifier;
+
+  if (!folderName) {
+    folderName = date;
+    if (venue) folderName += ` - ${venue}`;
+    if (sourceType) folderName += ` (${sourceType})`;
+  }
+
+  folderName = folderName.slice(0, 255);
+
+  return prompt(`Custom folder title? Default ${folderName}`, folderName);
 };
 
 async function fetchWithRedirect(url: string) {
@@ -179,7 +193,7 @@ const DownloadButton: FC<{ show: ArchiveShow }> = ({ show }) => {
     setProgress(0);
     setSuccess(false);
 
-    const showTitle = getShowTitle(archiveShow);
+    const showTitle = getFolderName(archiveShow);
     if (!showTitle) {
       setLoading(false);
       return;
